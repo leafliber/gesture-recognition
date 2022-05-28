@@ -1,4 +1,3 @@
-
 # -*- coding:utf-8 -*-
 
 """
@@ -15,13 +14,13 @@ import cv2
 import mediapipe as mp
 
 
-
 class HandDetector:
     """
     使用mediapipe库查找手。导出地标像素格式。添加了额外的功能。
     如查找方式，许多手指向上或两个手指之间的距离。而且提供找到的手的边界框信息。
     """
-    def __init__(self, mode=False, maxHands=2, detectionCon=0.5, minTrackCon = 0.5):
+
+    def __init__(self, mode=False, maxHands=2, detectionCon=0.5, minTrackCon=0.5):
         """
         :param mode: 在静态模式下，对每个图像进行检测
         :param maxHands: 要检测的最大手数
@@ -34,15 +33,14 @@ class HandDetector:
         self.detectionCon = detectionCon
         self.minTrackCon = minTrackCon
 
-		# 初始化手部识别模型
+        # 初始化手部识别模型
         self.mpHands = mp.solutions.hands
         self.hands = self.mpHands.Hands(self.mode, self.maxHands, self.modelComplex,
                                         self.detectionCon, self.minTrackCon)
-        self.mpDraw = mp.solutions.drawing_utils	# 初始化绘图器
-        self.tipIds = [4, 8, 12, 16, 20]			# 指尖列表
+        self.mpDraw = mp.solutions.drawing_utils  # 初始化绘图器
+        self.tipIds = [4, 8, 12, 16, 20]  # 指尖列表
         self.fingers = []
         self.lmList = []
-        self.connection = [(1,0,5),(1,0,17),(5,0,17),(2,1,0),(3,2,1),(4,3,2),(0,5,6),(0,5,9),(6,5,9),(5,6,7),(6,7,8),(5,9,13),(5,9,10),(10,9,13),(9,10,11),(10,11,12),(9,13,14),(9,13,17),(14,13,17),(13,14,15),(14,15,16),(13,17,18),(0,17,13),(0,17,18),(17,18,19),(18,19,20)]
 
     def findHands(self, img, draw=True):
         """
@@ -51,7 +49,7 @@ class HandDetector:
         :param draw: 在图像上绘制输出的标志。
         :return: 带或不带图形的图像
         """
-        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) # 将传入的图像由BGR模式转标准的Opencv模式——RGB模式，
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # 将传入的图像由BGR模式转标准的Opencv模式——RGB模式，
         self.results = self.hands.process(imgRGB)
 
         if self.results.multi_hand_landmarks:
@@ -73,7 +71,7 @@ class HandDetector:
         xList = []
         yList = []
         bbox = []
-        bboxInfo =[]
+        bboxInfo = []
         self.lmList = []
         if self.results.multi_hand_landmarks:
             myHand = self.results.multi_hand_landmarks[handNo]
@@ -91,7 +89,7 @@ class HandDetector:
             bbox = xmin, ymin, boxW, boxH
             cx, cy = bbox[0] + (bbox[2] // 2), \
                      bbox[1] + (bbox[3] // 2)
-            bboxInfo = {"id": id, "bbox": bbox,"center": (cx, cy)}
+            bboxInfo = {"id": id, "bbox": bbox, "center": (cx, cy)}
 
             if draw:
                 cv2.rectangle(img, (bbox[0] - 20, bbox[1] - 20),
@@ -138,15 +136,17 @@ class HandDetector:
             else:
                 return "Left"
 
+
 class Main:
     def __init__(self):
-        self.camera = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+        self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         self.camera.set(3, 1280)
         self.camera.set(4, 720)
 
     def Gesture_recognition(self):
+        fps = cv2.CAP_PROP_FPS
+        self.detector = HandDetector()
         while True:
-            self.detector = HandDetector()
             frame, img = self.camera.read()
             img = self.detector.findHands(img)
             lmList, bbox = self.detector.findPosition(img)
@@ -180,9 +180,13 @@ class Main:
                     cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
             cv2.imshow("camera", img)
+
+            key = cv2.waitKey(1)
             if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
                 break
-            cv2.waitKey(1)
+            elif key == 27:
+                break
+
 
 
 if __name__ == '__main__':
