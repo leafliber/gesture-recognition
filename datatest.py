@@ -19,13 +19,16 @@ class HandDetector:
         self.results = None
         self.mode = mode
         self.max_hands = max_hands
-        self.modelComplex = False
+        self.modelComplex = 1
         self.detection_con = detection_con
         self.min_track_con = min_track_con
 
         # 初始化手部的识别模型
         self.mpHands = mp.solutions.hands
-        self.hands = self.mpHands.Hands(self.mode, self.max_hands, self.detection_con, self.min_track_con)
+        self.hands = self.mpHands.Hands(static_image_mode=self.mode,
+                                        max_num_hands=self.max_hands,
+                                        min_detection_confidence=self.detection_con,
+                                        min_tracking_confidence=self.min_track_con)
         self.mpDraw = mp.solutions.drawing_utils  # 初始化绘图器
         self.tipIds = [4, 8, 12, 16, 20]  # 指尖列表
         self.fingers = []

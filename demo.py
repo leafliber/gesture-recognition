@@ -27,14 +27,16 @@ class HandDetector:
         self.results = None
         self.mode = mode
         self.max_hands = max_hands
-        self.modelComplex = False
+        self.modelComplex = 1
         self.detection_con = detection_con
         self.min_track_con = min_track_con
 
         # 初始化手部的识别模型
         self.mpHands = mp.solutions.hands
-        self.hands = self.mpHands.Hands(self.mode, self.max_hands, self.modelComplex,
-                                        self.detection_con, self.min_track_con)
+        self.hands = self.mpHands.Hands(static_image_mode=self.mode,
+                                        max_num_hands=self.max_hands,
+                                        min_detection_confidence=self.detection_con,
+                                        min_tracking_confidence=self.min_track_con)
         self.mpDraw = mp.solutions.drawing_utils  # 初始化绘图器
         self.tipIds = [4, 8, 12, 16, 20]  # 指尖列表
         self.fingers = []
@@ -153,6 +155,9 @@ class Main:
 
                 if (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
                     cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                (0, 0, 255), 3)
+                elif x3 and x1 == 0 and x2 == 0 and (x4 == 0, x5 == 0):
+                    cv2.putText(img, "FUCK YOU!!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
                 elif (x2 == 1 and x3 == 1 and x4 == 1) and (x1 == 0 and x5 == 0):
                     cv2.putText(img, "3_THREE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
