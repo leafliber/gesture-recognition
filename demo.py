@@ -7,8 +7,17 @@
 @ date: 2022-05-28
 """
 
-import cv2
 import mediapipe as mp
+import cv2
+# import HandDetector
+import math
+
+
+# 旋转函数
+def Rotate(angle, x, y, point_x, point_y):
+    px = (x - point_x) * math.cos(angle) - (y - point_y) * math.sin(angle) + point_x
+    py = (x - point_x) * math.sin(angle) + (y - point_y) * math.cos(angle) + point_y
+    return px, py
 
 
 class HandDetector:
@@ -37,8 +46,11 @@ class HandDetector:
                                         self.detection_con, self.min_track_con)
         self.mpDraw = mp.solutions.drawing_utils  # 初始化绘图器
         self.tipIds = [4, 8, 12, 16, 20]  # 指尖列表
+        # self.knuckles = {'0': [4, 3, 2, 1], "1": [8, 7, 6, 5], "2": [12, 11, 10, 9], "3": [16, 15, 14, 13],
+        #                  "4": [20, 19, 18, 17]}
         self.fingers = []
         self.lmList = []
+        self.re_lmList = []
 
     def find_hands(self, img, draw=True):
         """
@@ -70,6 +82,7 @@ class HandDetector:
         y_list = []
         bbox_info = []
         self.lmList = []
+        self.re_lmList = []
         if self.results.multi_hand_landmarks:
             my_hand = self.results.multi_hand_landmarks[hand_no]
             for _, lm in enumerate(my_hand.landmark):
@@ -93,6 +106,27 @@ class HandDetector:
                               (0, 255, 0), 2)
 
         return self.lmList, bbox_info
+
+    def revolve(self, img, draw=True):
+        """
+        旋转手势识别点
+        :param img: 要查找的主图像
+        :param draw: 在图像上绘制输出的标志。(默认绘制矩形框)
+        :return: 像素格式的手部关节位置列表
+        """
+        point_x = self.lmList[0][0]
+        point_y = self.lmList[0][1]
+        theta = math.atan((self.lmList[13][0] - point_x) / (self.lmList[13][1] - point_y))
+        if self.lmList[13][1] - point_y > 0:
+            theta = theta + math.pi
+        for i in self.lmList:
+            px, py = Rotate(theta, i[0], i[1], point_x, point_y)
+            px = int(px)
+            py = int(py)
+            self.re_lmList.append([px, py])
+            if draw:
+                cv2.circle(img, (px, py), 5, (0, 0, 255), cv2.FILLED)
+        return self.re_lmList
 
     def fingers_up(self):
         """
@@ -120,6 +154,61 @@ class HandDetector:
                 else:
                     fingers.append(0)
         return fingers
+    
+    def re_fingers_up(self):
+        """
+        查找列表中打开并返回的手指数。会分别考虑左手和右手
+        :return: 竖起手指的列表
+        """
+        fingers = []
+        if self.results.multi_hand_landmarks:
+            my_hand_type = self.hand_type()
+            # Thumb
+            if my_hand_type == "Right":
+                if self.re_lmList[self.tipIds[0]][0] > self.re_lmList[self.tipIds[0] - 1][0]:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+            else:
+                if self.re_lmList[self.tipIds[0]][0] < self.re_lmList[self.tipIds[0] - 1][0]:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+            # 4 Fingers
+            for i in range(1, 5):
+                if self.re_lmList[self.tipIds[i]][1] < self.re_lmList[self.tipIds[i] - 2][1]:
+                    fingers.append(1)
+                else:
+                    fingers.append(0)
+        return fingers
+
+    def knuckles_up(self):
+        """
+                查找列表中打开并返回的手指数。会分别考虑左手和右手
+                :return: 竖起手指的列表
+                """
+        knuckles = []
+        if self.results.multi_hand_landmarks:
+            my_hand_type = self.hand_type()
+            # Thumb
+            if my_hand_type == "Right":
+                if self.lmList[self.tipIds[0]][0] > self.lmList[self.tipIds[0] - 1][0]:
+                    knuckles.append(1)
+                else:
+                    knuckles.append(0)
+            else:
+                if self.lmList[self.tipIds[0]][0] < self.lmList[self.tipIds[0] - 1][0]:
+                    knuckles.append(1)
+                else:
+                    knuckles.append(0)
+            # 12 knuckles
+            for i in range(1, 5):
+                for j in range(4):
+                    if self.lmList[self.tipIds[i]-j][1] < self.lmList[self.tipIds[i]-j - 1][1]:
+                        knuckles.append(1)
+                    else:
+                        knuckles.append(0)
+        return knuckles
 
     def hand_type(self):
         """
@@ -148,8 +237,9 @@ class Main:
             lm_list, bbox = self.detector.find_position(img)
 
             if lm_list:
+                re_lm_list = self.detector.revolve(img)
                 x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
-                x1, x2, x3, x4, x5 = self.detector.fingers_up()
+                x1, x2, x3, x4, x5 = self.detector.re_fingers_up()
 
                 if (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
                     cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
