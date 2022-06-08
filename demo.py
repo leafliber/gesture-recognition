@@ -110,17 +110,21 @@ class HandDetector:
         return self.lmList, bbox_info
 
     def revolve(self, img, draw=True):
-        """
-        旋转手势识别点
-        :param img: 要查找的主图像
-        :param draw: 在图像上绘制输出的标志。(默认绘制矩形框)
-        :return: 像素格式的手部关节位置列表
-        """
+        # print(self.lmList)
         point_x = self.lmList[0][0]
         point_y = self.lmList[0][1]
-        theta = math.atan((self.lmList[13][0] - point_x) / (self.lmList[13][1] - point_y))
-        if self.lmList[13][1] - point_y > 0:
-            theta = theta + math.pi
+        delta_x = self.lmList[13][0] - point_x
+        delta_y = self.lmList[13][1] - point_y
+        if delta_y == 0:
+            if delta_x < 0:
+                theta = math.pi / 2
+            else:
+                theta = -math.pi / 2
+        else:
+            theta = math.atan(delta_x / delta_y)
+            if delta_y > 0:
+                theta = theta + math.pi
+        # print(theta*180/math.pi)
         for i in self.lmList:
             px, py = Rotate(theta, i[0], i[1], point_x, point_y)
             px = int(px)
