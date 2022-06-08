@@ -1,14 +1,6 @@
-# -*- coding:utf-8 -*-
-
-"""
-信号设计课程小组设计
-
-@ by: Leaf
-@ date: 2022-05-28
-"""
-
 import cv2
 import mediapipe as mp
+import numpy as np
 
 
 class HandDetector:
@@ -70,31 +62,24 @@ class HandDetector:
 
         x_list = []
         y_list = []
-        bbox_info = []
+        onedata = np.zeros([21,3])
+        zerodata = np.zeros([21,3])
+        h, w, c = img.shape
         self.lmList = []
+
         if self.results.multi_hand_landmarks:
             my_hand = self.results.multi_hand_landmarks[hand_no]
-            for _, lm in enumerate(my_hand.landmark):
-                h, w, c = img.shape
-                px, py = int(lm.x * w), int(lm.y * h)
+            for i, lm in enumerate(my_hand.landmark):
+                onedata[i] = np.array([lm.x,lm.y,lm.z])     #将三维坐标添加到单次截屏的数据中
+
+                px, py= int(lm.x * w), int(lm.y * h)
                 x_list.append(px)
                 y_list.append(py)
                 self.lmList.append([px, py])
                 if draw:
                     cv2.circle(img, (px, py), 5, (255, 0, 255), cv2.FILLED)
-            x_min, x_max = min(x_list), max(x_list)
-            y_min, y_max = min(y_list), max(y_list)
-            box_w, box_h = x_max - x_min, y_max - y_min
-            bbox = x_min, y_min, box_w, box_h
-            cx, cy = bbox[0] + (bbox[2] // 2), bbox[1] + (bbox[3] // 2)
-            bbox_info = {"id": hand_no, "bbox": bbox, "center": (cx, cy)}
 
-            if draw:
-                cv2.rectangle(img, (bbox[0] - 20, bbox[1] - 20),
-                              (bbox[0] + bbox[2] + 20, bbox[1] + bbox[3] + 20),
-                              (0, 255, 0), 2)
-
-        return self.lmList, bbox_info
+        return onedata, (h, w)
 
     def fingers_up(self):
         """
@@ -130,56 +115,42 @@ class HandDetector:
         """
         if self.results.multi_hand_landmarks:
             if self.lmList[17][0] < self.lmList[5][0]:
-                return "Right"
+                return 1
             else:
-                return "Left"
+                return 0
 
 
 class Main:
-    def __init__(self):
+    def __init__(self, label, N = 100):
         self.detector = None
         self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         self.camera.set(3, 1280)
         self.camera.set(4, 720)
+        self.N = N
+        #初始化数据包
+        self.label = label
+        self.data = np.zeros([N,21,3])
+        self.shape = np.zeros([N,2], dtype = np.int16)
+        self.handtype = np.zeros(N, dtype = np.int8)
 
     def gesture_recognition(self):
         self.detector = HandDetector()
+        #初始化数据
+        
+        zerodata = np.zeros([21,3])
+        rezult = np.zeros([21,3])
+        count = 0
+
         while True:
             frame, img = self.camera.read()
             img = self.detector.find_hands(img)
-            lm_list, bbox = self.detector.find_position(img)
-
-            if lm_list:
-                x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
-                x1, x2, x3, x4, x5 = self.detector.fingers_up()
-
-                if (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
-                    cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x3 and x1 == 0 and x2 == 0 and (x4 == 0, x5 == 0):
-                    cv2.putText(img, "FUCK YOU!!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1 and x4 == 1) and (x1 == 0 and x5 == 0):
-                    cv2.putText(img, "3_THREE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1) and (x1 == 0):
-                    cv2.putText(img, "4_FOUR", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1:
-                    cv2.putText(img, "5_FIVE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x2 == 1 and x1 == 0 and (x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "1_ONE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x2 == 1 and (x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "8_EIGHT", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x5 == 1 and (x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "6_SIX", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 and (x2 == 0, x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
+            
+            rezult,shape = self.detector.find_position(img)
+            if rezult.all() != zerodata.all():              #假设矩阵不为0，即捕捉到手部时
+                self.data[count] = rezult
+                self.handtype[count] = self.detector.hand_type()
+                self.shape[count] = np.array(shape)
+                count += 1
 
             cv2.imshow("camera", img)
             key = cv2.waitKey(1)
@@ -187,8 +158,20 @@ class Main:
                 break
             elif key == 27:
                 break
+            elif count == self.N - 1:
+                break
+        
+        np.savez('firstdata', label = self.label, data = self.data, 
+                                handtype = self.handtype, shape = self.shape)
 
 
 if __name__ == '__main__':
-    Solution = Main()
+    Solution = Main(label = "five")
     Solution.gesture_recognition()
+    npzfile = np.load('firstdata.npz')
+    
+    #print(npzfile['data'][0])
+    #print(" ")
+    #print(npzfile['handtype'])
+    #print(npzfile['label'])
+    #print(npzfile['shape'])
