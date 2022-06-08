@@ -204,9 +204,14 @@ class HandDetector:
                 else:
                     knuckles.append(0)
             # 12 knuckles
+            distan = 0.22
             for i in range(1, 5):
                 for j in range(4):
-                    if self.lmList[self.tipIds[i]-j][1] < self.lmList[self.tipIds[i]-j - 1][1]:
+                    xx = self.lmList[self.tipIds[i]-j][1]
+                    yy = self.lmList[self.tipIds[i]-j - 1][1]
+                    if -distan < xx - yy < distan:
+                        knuckles.append(2)
+                    elif xx < yy:
                         knuckles.append(1)
                     else:
                         knuckles.append(0)
