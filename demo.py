@@ -13,6 +13,7 @@ import cv2
 import math
 from datetime import datetime
 import time
+import numpy as np
 
 
 # 旋转函数
@@ -229,7 +230,7 @@ class HandDetector:
                     yy = self.re_lmList[self.tipIds[i]-j - 1][1]
                     if -distan < xx - yy < distan:
                         knuckles.append(2)
-                    elif xx > yy:
+                    elif xx < yy:
                         knuckles.append(1)
                     else:
                         knuckles.append(0)
@@ -256,53 +257,51 @@ class Main:
 
     def gesture_recognition(self):
         self.detector = HandDetector()
-        xl = []  # 特征值存储
+        gesture_store = {}
         startTime = time.time()
+        stored_round = 1
+        stored_flag = 0
+        xl = np.zeros((1, 13))  # 特征值存储
         while True:
             frame, img = self.camera.read()
             img = self.detector.find_hands(img)
             lm_list, bbox = self.detector.find_position(img)
-
             if lm_list:
                 re_lm_list = self.detector.revolve(img)
                 x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
-                x1, x2, x3, x4, x5 = self.detector.re_fingers_up()
+                knucks = self.detector.knuckles_up()
+                # x1, x2, x3, x4, x5 = self.detector.re_fingers_up()
+                #
+                # if (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
+                #     cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                #                 (0, 0, 255), 3)
 
-                if (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
-                    cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1 and x4 == 1) and (x1 == 0 and x5 == 0):
-                    cv2.putText(img, "3_THREE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1) and (x1 == 0):
-                    cv2.putText(img, "4_FOUR", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1:
-                    cv2.putText(img, "5_FIVE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x2 == 1 and x1 == 0 and (x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "1_ONE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x2 == 1 and (x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "8_EIGHT", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x5 == 1 and (x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "6_SIX", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 and (x2 == 0, x3 == 0, x4 == 0, x5 == 0):
-                    cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
                 print(time.time() - startTime)
-                if (time.time() - startTime) < 2:  # 手势存储时间
-                    xl.append([x1, x2, x3, x4, x5])
+                if (time.time() - startTime) < 3:  # 手势存储时间
+                    xl = np.vstack((xl, knucks))
                     cv2.putText(img, 'Please put the gesture to be stored in 1 second', (50, 50),
                                 cv2.FONT_HERSHEY_PLAIN, 1.2, (255, 255, 255), 2)
-                else:  # 开始手势存储
+                else:  # 开始手势识别
+                    self.detector.fingers = xl
+                    value = ''
+                    for j in range(13):
+                        value = value + str(np.argmax(
+                            np.bincount(xl[:, j].astype(int))))   # 找出第3列最频繁出现的值
+                    gesture_store[value] = stored_round
+                    stored_flag = 1
                     # startTime = time.time()
+                    gesture_dete = ''.join(str(knuck) for knuck in knucks)
+                    if gesture_dete in gesture_store:
+                        cv2.putText(img, str(gesture_store[gesture_dete]), (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                    (0, 0, 255), 3)
                     cv2.putText(img, 'Gesture stored, recognition started', (50, 50),
                                 cv2.FONT_HERSHEY_PLAIN, 1.2, (255, 255, 255), 2)
             else:
+                if stored_flag:
+                    stored_round += 1
+                    stored_flag = 0
                 startTime = time.time()  # 当检测不到手势时，初始化手势存储
+                xl = np.zeros((1, 13))  # 特征值存储
                 cv2.putText(img, 'Please put the gesture to be stored in 1 second', (50, 50), cv2.FONT_HERSHEY_PLAIN,
                             1.2, (255, 255, 255), 2)
 
