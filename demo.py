@@ -11,6 +11,8 @@ import mediapipe as mp
 import cv2
 # import HandDetector
 import math
+from datetime import datetime
+import time
 
 
 # 旋转函数
@@ -200,28 +202,34 @@ class HandDetector:
                 :return: 竖起手指的列表
                 """
         knuckles = []
+        distan = 10
         if self.results.multi_hand_landmarks:
             my_hand_type = self.hand_type()
             # Thumb
+            xx = self.re_lmList[self.tipIds[0]][0]
+            yy = self.re_lmList[self.tipIds[0] - 1][0]
             if my_hand_type == "Right":
-                if self.lmList[self.tipIds[0]][0] > self.lmList[self.tipIds[0] - 1][0]:
+                if -distan < xx - yy < distan:
+                    knuckles.append(2)
+                elif xx > yy:
                     knuckles.append(1)
                 else:
                     knuckles.append(0)
             else:
-                if self.lmList[self.tipIds[0]][0] < self.lmList[self.tipIds[0] - 1][0]:
+                if -distan < xx - yy < distan:
+                    knuckles.append(2)
+                elif xx < yy:
                     knuckles.append(1)
                 else:
                     knuckles.append(0)
             # 12 knuckles
-            distan = 0.22
             for i in range(1, 5):
-                for j in range(4):
-                    xx = self.lmList[self.tipIds[i]-j][1]
-                    yy = self.lmList[self.tipIds[i]-j - 1][1]
+                for j in range(3):
+                    xx = self.re_lmList[self.tipIds[i]-j][1]
+                    yy = self.re_lmList[self.tipIds[i]-j - 1][1]
                     if -distan < xx - yy < distan:
                         knuckles.append(2)
-                    elif xx < yy:
+                    elif xx > yy:
                         knuckles.append(1)
                     else:
                         knuckles.append(0)
@@ -248,6 +256,8 @@ class Main:
 
     def gesture_recognition(self):
         self.detector = HandDetector()
+        xl = []  # 特征值存储
+        startTime = time.time()
         while True:
             frame, img = self.camera.read()
             img = self.detector.find_hands(img)
@@ -282,6 +292,19 @@ class Main:
                 elif x1 and (x2 == 0, x3 == 0, x4 == 0, x5 == 0):
                     cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
+                print(time.time() - startTime)
+                if (time.time() - startTime) < 2:  # 手势存储时间
+                    xl.append([x1, x2, x3, x4, x5])
+                    cv2.putText(img, 'Please put the gesture to be stored in 1 second', (50, 50),
+                                cv2.FONT_HERSHEY_PLAIN, 1.2, (255, 255, 255), 2)
+                else:  # 开始手势存储
+                    # startTime = time.time()
+                    cv2.putText(img, 'Gesture stored, recognition started', (50, 50),
+                                cv2.FONT_HERSHEY_PLAIN, 1.2, (255, 255, 255), 2)
+            else:
+                startTime = time.time()  # 当检测不到手势时，初始化手势存储
+                cv2.putText(img, 'Please put the gesture to be stored in 1 second', (50, 50), cv2.FONT_HERSHEY_PLAIN,
+                            1.2, (255, 255, 255), 2)
 
             cv2.imshow("camera", img)
             key = cv2.waitKey(1)
