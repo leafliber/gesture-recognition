@@ -13,10 +13,18 @@ import torch
 import torch.nn as nn
 import numpy as np
 import shutil
+import math
 from os.path import exists
 from os import mkdir
 from pathlib import Path
 from torch.utils.data import DataLoader, TensorDataset
+
+
+# 旋转函数
+def rotate(angle, x, y, point_x, point_y):
+    px = (x - point_x) * math.cos(angle) - (y - point_y) * math.sin(angle) + point_x
+    py = (x - point_x) * math.sin(angle) + (y - point_y) * math.cos(angle) + point_y
+    return px, py
 
 
 class CNN(nn.Module):
@@ -85,6 +93,7 @@ class HandDetector:
         self.tipIds = [4, 8, 12, 16, 20]  # 指尖列表
         self.fingers = []
         self.lmList = []
+        self.re_lmList = []
 
     def find_hands(self, img, draw=True):
         """
@@ -113,7 +122,6 @@ class HandDetector:
         """
         x_list = []
         y_list = []
-        one_data = np.zeros([21, 3])
         bbox_info = []
         self.lmList = []
         h, w, c = img.shape
@@ -124,7 +132,6 @@ class HandDetector:
                 x_list.append(px)
                 y_list.append(py)
                 self.lmList.append([lm.x, lm.y, lm.z])
-                one_data[i] = np.array([lm.x, lm.y, lm.z])
                 if draw:
                     cv2.circle(img, (px, py), 5, (255, 0, 255), cv2.FILLED)
             x_min, x_max = min(x_list), max(x_list)
@@ -132,14 +139,51 @@ class HandDetector:
             box_w, box_h = x_max - x_min, y_max - y_min
             bbox = x_min, y_min, box_w, box_h
             cx, cy = bbox[0] + (bbox[2] // 2), bbox[1] + (bbox[3] // 2)
-            bbox_info = {"id": hand_no, "bbox": bbox, "center": (cx, cy)}
+            bbox_info = {"id": hand_no, "bbox": bbox, "center": (cx, cy), "shape": (h, w)}
 
             if draw:
                 cv2.rectangle(img, (bbox[0] - 20, bbox[1] - 20),
                               (bbox[0] + bbox[2] + 20, bbox[1] + bbox[3] + 20),
                               (0, 255, 0), 2)
 
-        return one_data, (h, w), self.lmList, bbox_info
+        self.revolve(img)
+
+        return self.re_lmList, bbox_info
+
+    def revolve(self, img, draw=True):
+        """
+            旋转手势识别点
+            :param img: 要查找的主图像
+            :param draw: 在图像上绘制输出的标志。(默认绘制矩形框)
+            :return: 像素格式的手部关节位置列表
+        """
+        h, w, c = img.shape
+        if len(self.lmList) >= 21:
+            # print(self.lmList)
+            self.re_lmList = []
+            point_x = self.lmList[0][0]
+            point_y = self.lmList[0][1]
+            delta_x = self.lmList[13][0] - point_x
+            delta_y = self.lmList[13][1] - point_y
+            if delta_y == 0:
+                if delta_x < 0:
+                    theta = math.pi / 2
+                else:
+                    theta = -math.pi / 2
+            else:
+                theta = math.atan(delta_x / delta_y)
+                if delta_y > 0:
+                    theta = theta + math.pi
+            # print(theta*180/math.pi)
+            for i in self.lmList:
+                x, y = rotate(theta, i[0], i[1], point_x, point_y)
+                px, py = int(x * w), int(y * h)
+                self.re_lmList.append([x, y, i[2]])
+                if draw:
+                    cv2.circle(img, (px, py), 5, (0, 0, 255), cv2.FILLED)
+        else:
+            self.re_lmList = self.lmList
+        return self.re_lmList
 
     def hand_type(self):
         """
@@ -242,8 +286,13 @@ class Main:
             while True:
                 frame, img = self.camera.read()
                 img = self.detector.find_hands(img)
+                result = np.zeros((21, 3))
 
-                result, shape, _, bbox = self.detector.find_position(img)
+                lm_list, bbox = self.detector.find_position(img)
+                for i in range(len(lm_list)):
+                    result[i] = np.array(lm_list[i])
+                shape = bbox["shape"]
+
                 if result.all() != zero_data.all():  # 假设矩阵不为0，即捕捉到手部时
                     x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
                     data[count] = result
@@ -286,7 +335,7 @@ class Main:
         while True:
             frame, img = self.camera.read()
             img = self.detector.find_hands(img)
-            _, _, lm_list, bbox = self.detector.find_position(img)
+            lm_list, bbox = self.detector.find_position(img)
 
             if lm_list:
                 x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
@@ -310,6 +359,6 @@ class Main:
 if __name__ == '__main__':
     solution = Main()
     my_datasets_dir = "test"
-    solution.make_datasets(my_datasets_dir, 200)
+    solution.make_datasets(my_datasets_dir, 50)
     solution.train(my_datasets_dir)
     solution.gesture_recognition()
