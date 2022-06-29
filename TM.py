@@ -1,14 +1,8 @@
 # -*- coding:utf-8 -*-
 
-"""
-信号设计课程小组设计
-
-@ by: Leaf
-@ date: 2022-05-28
-"""
-
 import cv2
 import mediapipe as mp
+import numpy as np
 
 
 class HandDetector:
@@ -27,7 +21,7 @@ class HandDetector:
         self.results = None
         self.mode = mode
         self.max_hands = max_hands
-        self.modelComplex = 1
+        self.modelComplex = False
         self.detection_con = detection_con
         self.min_track_con = min_track_con
 
@@ -79,7 +73,7 @@ class HandDetector:
                 px, py = int(lm.x * w), int(lm.y * h)
                 x_list.append(px)
                 y_list.append(py)
-                self.lmList.append([px, py])
+                self.lmList.append(np.array([px, py]))
                 if draw:
                     cv2.circle(img, (px, py), 5, (255, 0, 255), cv2.FILLED)
             x_min, x_max = min(x_list), max(x_list)
@@ -117,7 +111,9 @@ class HandDetector:
                     fingers.append(0)
             # 4 Fingers
             for i in range(1, 5):
-                if self.lmList[self.tipIds[i]][1] < self.lmList[self.tipIds[i] - 2][1]:
+                # if self.lmList[self.tipIds[i]][1] < self.lmList[self.tipIds[i] - 2][1]:
+                if np.dot(self.lmList[self.tipIds[i]-2]-self.lmList[self.tipIds[i]-3],
+                          self.lmList[self.tipIds[i]-1]-self.lmList[self.tipIds[i]-2]) >= 0:
                     fingers.append(1)
                 else:
                     fingers.append(0)
@@ -152,8 +148,16 @@ class Main:
             if lm_list:
                 x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
                 x1, x2, x3, x4, x5 = self.detector.fingers_up()
-
-                if (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
+                if (np.linalg.norm(lm_list[4]-lm_list[8]) < 50) and (np.linalg.norm(lm_list[4]-lm_list[12]) < 50):
+                    cv2.putText(img, "7_SEVEN", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                (0, 0, 255), 3)
+                elif (np.linalg.norm(lm_list[4]-lm_list[8]) < 50) and (x4 == 1 and x5 == 1 and x3 == 1):
+                    cv2.putText(img, "OK", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                (0, 0, 255), 3)
+                elif (np.linalg.norm(lm_list[4]-lm_list[12]) < 50) and (x4 == 1 and x5 == 1 and x2 == 1):
+                    cv2.putText(img, "flip", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                (0, 0, 255), 3)
+                elif (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
                     cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
                 elif (x2 == 1 and x3 == 1 and x4 == 1) and (x1 == 0 and x5 == 0):
@@ -165,19 +169,24 @@ class Main:
                 elif x1 == 1 and x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1:
                     cv2.putText(img, "5_FIVE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
-                elif x2 == 1 and x1 == 0 and (x3 == 0, x4 == 0, x5 == 0):
+                elif (x2 == 1 and x1 == 0) and (x3 == 0 and x4 == 0 and x5 == 0):
                     cv2.putText(img, "1_ONE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
-                elif x1 == 1 and x2 == 1 and (x3 == 0, x4 == 0, x5 == 0):
+                elif (x1 == 1 and x2 == 1) and (x3 == 0 and x4 == 0 and x5 == 0):
                     cv2.putText(img, "8_EIGHT", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
-                elif x1 == 1 and x5 == 1 and (x3 == 0, x4 == 0, x5 == 0):
+                elif (x1 == 1 and x5 == 1) and (x3 == 0 and x4 == 0 and x2 == 0):
                     cv2.putText(img, "6_SIX", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
-                elif x1 and (x2 == 0, x3 == 0, x4 == 0, x5 == 0):
+                elif x1 and (x2 == 0 and x3 == 0 and x4 == 0 and x5 == 0):
                     cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                                 (0, 0, 255), 3)
-
+                elif (x1 == 1 and x2 == 1 and x5 == 1) and (x3 == 0 and x4 == 0):
+                    cv2.putText(img, "yo", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                (0, 0, 255), 3)
+                else:
+                    cv2.putText(img, "unknown", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                                (0, 0, 255), 3)
             cv2.imshow("camera", img)
             key = cv2.waitKey(1)
             if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
