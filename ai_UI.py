@@ -32,7 +32,7 @@ def rotate(angle, x, y, point_x, point_y):
 def normalize(x):
     max_x = np.max(x)
     min_x = np.min(x)
-    return (x-min_x)/(max_x-min_x)
+    return (x - min_x) / (max_x - min_x)
 
 
 class CNN(nn.Module):
@@ -56,7 +56,7 @@ class CNN(nn.Module):
             nn.MaxPool2d(2),
         )
         self.med = nn.Linear(32 * 11 * 2, 500)
-        self.med2 = nn.Linear(1*21*3, 100)
+        self.med2 = nn.Linear(1 * 21 * 3, 100)
         self.med3 = nn.Linear(100, 500)
         self.out = nn.Linear(500, m)  # fully connected layer, output 10 classes
 
@@ -264,10 +264,10 @@ class AI:
                     print(
                         "\r[Epoch: %d] [%d/%d (%0.f %%)][Loss: %f]"
                         % (
-                            epoch+1,
-                            (step+1) * len(data),
+                            epoch + 1,
+                            (step + 1) * len(data),
                             len(self.train_loader.dataset),
-                            100. * (step+1) / len(self.train_loader),
+                            100. * (step + 1) / len(self.train_loader),
                             loss.item()
                         ), end="")
 
@@ -290,7 +290,7 @@ class Main:
         tk.Label(self.top1, text='Label:').place(x=27, y=10)
         self.entry = tk.Entry(self.top1, width=15)
         self.entry.place(x=80, y=10)
-        tk.Button(self.top1, text='确定', command=self.change_state).place(x=235,y=5)
+        tk.Button(self.top1, text='确定', command=self.change_state).place(x=235, y=5)
 
     def change_state(self):
         self.label = self.entry.get()  # 调用get()方法，将Entry中的内容获取出来
@@ -357,7 +357,7 @@ class Main:
         ai.load_datasets()
         ai.train_cnn()
 
-    def gesture_recognition(self):
+    def gesture_recognition_camera(self):
         if self.camera is None:
             self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             self.camera.set(3, 1280)
@@ -394,10 +394,83 @@ class Main:
             elif key == 27:
                 break
 
+    def gesture_recognition_video(self, filedir):
+        self.detector = HandDetector()
+        cnn = torch.load("CNN.pkl")
+        out_label = cnn.out_label
+        result = []
+        disp = ""
+        cap = cv2.VideoCapture(filedir)
+        while True:
+            ret, img = cap.read()
+            img = self.detector.find_hands(img)
+            lm_list, bbox = self.detector.find_position(img)
+
+            if lm_list.any():
+                x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
+                data = torch.Tensor(lm_list)
+                data = data.unsqueeze(0)
+                data = data.unsqueeze(0)
+
+                test_output = cnn(data)
+                result.append(torch.max(test_output, 1)[1].data.cpu().numpy()[0])
+                if len(result) > 5:
+                    disp = str(out_label[stats.mode(result)[0][0]])
+                    result = []
+
+                cv2.putText(img, disp, (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+
+            cv2.imshow("camera", img)
+            key = cv2.waitKey(1)
+            if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
+                break
+            elif key == 27:
+                break
+        cap.release()
+
+
+    def gesture_recognition_img(self, filedir):
+        self.detector = HandDetector()
+        cnn = torch.load("CNN.pkl")
+        out_label = cnn.out_label
+        result = []
+        disp = ""
+        img = cv2.imread(filedir)
+        img = self.detector.find_hands(img)
+        while True:
+
+            lm_list, bbox = self.detector.find_position(img)
+
+            if lm_list.any():
+                x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
+                data = torch.Tensor(lm_list)
+                data = data.unsqueeze(0)
+                data = data.unsqueeze(0)
+
+                test_output = cnn(data)
+                result.append(torch.max(test_output, 1)[1].data.cpu().numpy()[0])
+                if len(result) > 5:
+                    disp = str(out_label[stats.mode(result)[0][0]])
+                    result = []
+
+                cv2.putText(img, disp, (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+
+            cv2.imshow("camera", img)
+            key = cv2.waitKey(1)
+            if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
+                break
+            elif key == 27:
+                break
 
 if __name__ == '__main__':
     solution = Main()
     my_datasets_dir = "test"
-    solution.make_datasets(my_datasets_dir, 100)
-    solution.train(my_datasets_dir)
-    solution.gesture_recognition()
+    # solution.make_datasets(my_datasets_dir, 100)
+    # solution.train(my_datasets_dir)
+    dir_video = "C:/Users/Liar/Pictures/Camera Roll/WIN_20220630_20_11_47_Pro.mp4"
+    dir_img = "C:/Users/Liar/Pictures/Camera Roll/WIN_20220630_20_01_22_Pro.jpg"
+    solution.gesture_recognition_camera()
+    # solution.gesture_recognition_video(dir_video)
+    # solution.gesture_recognition_img(dir_img)
