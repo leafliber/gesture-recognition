@@ -95,12 +95,12 @@ class Main:
 
     def gr_img(self, filedir, diy):
         print(filedir)
-        img = cv2.imread(filedir)
         if diy:
             cnn = torch.load("CNN.pkl")
             cnn_two = torch.load("CNN_two.pkl")
         while True:
             not_match = 0
+            img = cv2.imread(filedir)
             img_tm = copy.deepcopy(img)
             is_one_hand = self.at_main.gesture_recognition(self.at_detector, img, cnn_two)
             if is_one_hand:
