@@ -134,65 +134,45 @@ class HandDetector:
 class Main:
     def __init__(self):
         self.detector = None
-        self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        self.camera.set(3, 1280)
-        self.camera.set(4, 720)
+        self.camera = None
+        # self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        # self.camera.set(3, 1280)
+        # self.camera.set(4, 720)
 
-    def gesture_recognition(self):
-        self.detector = HandDetector()
-        while True:
-            frame, img = self.camera.read()
-            img = self.detector.find_hands(img)
-            lm_list, bbox = self.detector.find_position(img)
+    def gesture_recognition(self, img, detector):
+        self.detector = detector
+        lm_list, bbox = detector.find_position(img)
 
-            if lm_list:
-                x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
-                x1, x2, x3, x4, x5 = self.detector.fingers_up()
-                if (np.linalg.norm(lm_list[4]-lm_list[8]) < 50) and (np.linalg.norm(lm_list[4]-lm_list[12]) < 50):
-                    cv2.putText(img, "7_SEVEN", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (np.linalg.norm(lm_list[4]-lm_list[8]) < 50) and (x4 == 1 and x5 == 1 and x3 == 1):
-                    cv2.putText(img, "OK", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (np.linalg.norm(lm_list[4]-lm_list[12]) < 50) and (x4 == 1 and x5 == 1 and x2 == 1):
-                    cv2.putText(img, "flip", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
-                    cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1 and x4 == 1) and (x1 == 0 and x5 == 0):
-                    cv2.putText(img, "3_THREE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1) and (x1 == 0):
-                    cv2.putText(img, "4_FOUR", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 == 1 and x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1:
-                    cv2.putText(img, "5_FIVE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x2 == 1 and x1 == 0) and (x3 == 0 and x4 == 0 and x5 == 0):
-                    cv2.putText(img, "1_ONE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x1 == 1 and x2 == 1) and (x3 == 0 and x4 == 0 and x5 == 0):
-                    cv2.putText(img, "8_EIGHT", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x1 == 1 and x5 == 1) and (x3 == 0 and x4 == 0 and x2 == 0):
-                    cv2.putText(img, "6_SIX", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif x1 and (x2 == 0 and x3 == 0 and x4 == 0 and x5 == 0):
-                    cv2.putText(img, "GOOD!", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                elif (x1 == 1 and x2 == 1 and x5 == 1) and (x3 == 0 and x4 == 0):
-                    cv2.putText(img, "yo", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                else:
-                    cv2.putText(img, "unknown", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-            cv2.imshow("camera", img)
-            key = cv2.waitKey(1)
-            if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
-                break
-            elif key == 27:
-                break
+        if lm_list:
+            x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
+            x1, x2, x3, x4, x5 = detector.fingers_up()
+            if (np.linalg.norm(lm_list[4]-lm_list[8]) < 50) and (np.linalg.norm(lm_list[4]-lm_list[12]) < 50):
+                cv2.putText(img, "7_SEVEN", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif (x2 == 1 and x3 == 1) and (x4 == 0 and x5 == 0 and x1 == 0):
+                cv2.putText(img, "2_TWO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif (x2 == 1 and x3 == 1 and x4 == 1) and (x1 == 0 and x5 == 0):
+                cv2.putText(img, "3_THREE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif (x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1) and (x1 == 0):
+                cv2.putText(img, "4_FOUR", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif x1 == 1 and x2 == 1 and x3 == 1 and x4 == 1 and x5 == 1:
+                cv2.putText(img, "5_FIVE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif (x2 == 1 and x1 == 0) and (x3 == 0 and x4 == 0 and x5 == 0):
+                cv2.putText(img, "1_ONE", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif (x1 == 1 and x2 == 1) and (x3 == 0 and x4 == 0 and x5 == 0):
+                cv2.putText(img, "8_EIGHT", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif (x1 == 1 and x5 == 1) and (x3 == 0 and x4 == 0 and x2 == 0):
+                cv2.putText(img, "6_SIX", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            else:
+                return 1
+        return 0
 
 
 if __name__ == '__main__':

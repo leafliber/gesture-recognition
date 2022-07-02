@@ -36,9 +36,9 @@ def normalize(x):
     return (x-min_x)/(max_x-min_x)
 
 
-class CNN(nn.Module):
+class CNNTwo(nn.Module):
     def __init__(self, m):
-        super(CNN, self).__init__()
+        super(CNNTwo, self).__init__()
         self.out_label = []
         self.conv1 = nn.Sequential(
             nn.Conv2d(
@@ -250,7 +250,7 @@ class AI:
         return self.m
 
     def train_cnn(self):
-        cnn = CNN(self.m).to(self.DEVICE)
+        cnn = CNNTwo(self.m).to(self.DEVICE)
         optimizer = torch.optim.Adam(cnn.parameters(), self.LR)  # optimize all cnn parameters
         loss_func = nn.CrossEntropyLoss()  # the target label is not one-hotted
 
@@ -275,7 +275,7 @@ class AI:
                         ), end="")
 
         cnn.out_label = self.out_label
-        torch.save(cnn, 'CNN.pkl')
+        torch.save(cnn, 'CNN_two.pkl')
         print("训练结束")
 
 
@@ -287,13 +287,9 @@ class Main:
         self.len_x = 44
         self.len_y = 4
         self.label = ''
-        self.top1 = tk.Tk()
-        self.top1.geometry('300x50')
-        self.top1.title('请输入标签')
-        tk.Label(self.top1, text='Label:').place(x=27, y=10)
-        self.entry = tk.Entry(self.top1, width=15)
-        self.entry.place(x=80, y=10)
-        tk.Button(self.top1, text='确定', command=self.change_state).place(x=235, y=5)
+
+        self.result = []
+        self.disp = ""
 
     def change_state(self):
         self.label = self.entry.get()  # 调用get()方法，将Entry中的内容获取出来
@@ -301,16 +297,27 @@ class Main:
         if self.label == "":
             self.top1.destroy()
 
-    def make_datasets(self, datasets_dir="default", n=100):
+    def on_closing(self):
+        self.label = ""
+        self.top1.destroy()
+
+    def make_datasets(self, camera, datasets_dir="default", n=100):
         if datasets_dir == "default":
             return
         if exists(datasets_dir):
             shutil.rmtree(datasets_dir)
         mkdir(datasets_dir)
-        if self.camera is None:
-            self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-            self.camera.set(3, 1280)
-            self.camera.set(4, 720)
+        self.camera = camera
+
+        self.top1 = tk.Tk()
+        self.top1.geometry('300x50')
+        self.top1.title('请输入标签')
+        self.top1.protocol("WM_DELETE_WINDOW", self.on_closing)
+        tk.Label(self.top1, text='Label:').place(x=27, y=10)
+        self.entry = tk.Entry(self.top1, width=15)
+        self.entry.place(x=80, y=10)
+        tk.Button(self.top1, text='确定', command=self.change_state).place(x=235, y=5)
+
         self.top1.mainloop()
         while not self.label == "":
             data = np.zeros([n, self.len_x, self.len_y])
@@ -369,47 +376,34 @@ class Main:
         ai.load_datasets()
         ai.train_cnn()
 
-    def gesture_recognition(self):
-        if self.camera is None:
-            self.camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-            self.camera.set(3, 1280)
-            self.camera.set(4, 720)
-        self.detector = HandDetector()
-        cnn = torch.load("CNN.pkl")
+    def gesture_recognition(self, detector, img, cnn):
+        self.detector = detector
         out_label = cnn.out_label
-        result = []
-        disp = ""
-        while True:
-            frame, img = self.camera.read()
-            img, is_two_hand = self.detector.find_hands(img)
-            if is_two_hand:
-                lm_list1, bbox1 = self.detector.find_position(img, 0)
-                lm_list2, bbox2 = self.detector.find_position(img, 1)
-                if lm_list1.any() and lm_list2.any():
-                    x_1, y_1 = bbox1["bbox"][0], bbox1["bbox"][1]
-                    x_2, y_2 = bbox2["bbox"][0], bbox2["bbox"][1]
-                    lm_list = np.concatenate((lm_list1, lm_list2), axis=0)
-                    data = torch.Tensor(lm_list)
-                    data = data.unsqueeze(0)
-                    data = data.unsqueeze(0)
+        img, is_two_hand = self.detector.find_hands(img)
+        if is_two_hand:
+            lm_list1, bbox1 = self.detector.find_position(img, 0)
+            lm_list2, bbox2 = self.detector.find_position(img, 1)
+            if lm_list1.any() and lm_list2.any():
+                x_1, y_1 = bbox1["bbox"][0], bbox1["bbox"][1]
+                x_2, y_2 = bbox2["bbox"][0], bbox2["bbox"][1]
+                lm_list = np.concatenate((lm_list1, lm_list2), axis=0)
+                data = torch.Tensor(lm_list)
+                data = data.unsqueeze(0)
+                data = data.unsqueeze(0)
 
-                    test_output = cnn(data)
-                    result.append(torch.max(test_output, 1)[1].data.cpu().numpy()[0])
-                    if len(result) > 4:
-                        disp = str(out_label[stats.mode(result)[0][0]])
-                        result = []
+                test_output = cnn(data)
+                self.result.append(torch.max(test_output, 1)[1].data.cpu().numpy()[0])
+                if len(self.result) > 4:
+                    self.disp = str(out_label[stats.mode(self.result)[0][0]])
+                    self.result = []
 
-                    cv2.putText(img, disp, (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-                    cv2.putText(img, disp, (x_2, y_2), cv2.FONT_HERSHEY_PLAIN, 3,
-                                (0, 0, 255), 3)
-
-            cv2.imshow("camera", img)
-            key = cv2.waitKey(1)
-            if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
-                break
-            elif key == 27:
-                break
+                cv2.putText(img, self.disp, (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+                cv2.putText(img, self.disp, (x_2, y_2), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+        else:
+            return 1
+        return 0
 
 
 if __name__ == '__main__':
