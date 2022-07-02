@@ -371,13 +371,23 @@ class Main:
             data = data.unsqueeze(0)
 
             test_output = cnn(data)
+
+            test_np = test_output.detach().numpy()[0]
+            # normal_temp = normalize(test_np)
+            # temp = normal_temp[np.argpartition(normal_temp, -2)[-2:]]
+            temp = test_np[np.argpartition(test_np, -2)[-2:]]
+            print(temp[1]-temp[0])
+            if temp[1]-temp[0] < 5.5:
+                return 1
+
             self.result.append(torch.max(test_output, 1)[1].data.cpu().numpy()[0])
-            if len(self.result) > 5:
+            if len(self.result) > 4:
                 self.disp = str(out_label[stats.mode(self.result)[0][0]])
                 self.result = []
 
             cv2.putText(img, self.disp, (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                         (0, 0, 255), 3)
+        return 0
 
     def gesture_recognition_video(self, filedir):
         self.detector = HandDetector()

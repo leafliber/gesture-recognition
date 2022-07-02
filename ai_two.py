@@ -221,8 +221,8 @@ class HandDetector:
 
 class AI:
     def __init__(self, datasets_dir):
-        self.EPOCH = 20
-        self.BATCH_SIZE = 2
+        self.EPOCH = 100
+        self.BATCH_SIZE = 4
         self.LR = 10e-5
         self.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.datasets_dir = datasets_dir

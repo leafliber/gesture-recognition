@@ -2,6 +2,7 @@ import TM
 import ai
 import ai_two
 import cv2
+import copy
 import torch
 import torch.nn as nn
 
@@ -98,15 +99,19 @@ class Main:
         if diy:
             cnn = torch.load("CNN.pkl")
             cnn_two = torch.load("CNN_two.pkl")
-        tm_img = self.tm_detector.find_hands(img)
         while True:
+            not_match = 0
+            img_tm = copy.deepcopy(img)
             is_one_hand = self.at_main.gesture_recognition(self.at_detector, img, cnn_two)
             if is_one_hand:
                 not_match = self.ai_main.gesture_recognition_camera(self.ai_detector, img, cnn)
                 if not_match:
-                    self.tm_main.gesture_recognition(tm_img, self.tm_detector)
+                    self.tm_main.gesture_recognition(img_tm, self.tm_detector)
 
-            cv2.imshow("camera", img)
+            if not_match:
+                cv2.imshow("camera", img_tm)
+            else:
+                cv2.imshow("camera", img)
             key = cv2.waitKey(1)
             if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -120,13 +125,18 @@ class Main:
             cnn_two = torch.load("CNN_two.pkl")
         while True:
             ret, img = cap.read()
-            tm_status = self.tm_main.gesture_recognition(self.tm_detector.find_hands(img), self.tm_detector)
-            if tm_status and diy:
-                is_one_hand = self.at_main.gesture_recognition(self.at_detector, img, cnn_two)
-                if is_one_hand:
-                    self.ai_main.gesture_recognition_camera(self.ai_detector, img, cnn)
+            not_match = 0
+            img_tm = copy.deepcopy(img)
+            is_one_hand = self.at_main.gesture_recognition(self.at_detector, img, cnn_two)
+            if is_one_hand:
+                not_match = self.ai_main.gesture_recognition_camera(self.ai_detector, img, cnn)
+                if not_match:
+                    self.tm_main.gesture_recognition(img_tm, self.tm_detector)
 
-            cv2.imshow("camera", img)
+            if not_match:
+                cv2.imshow("camera", img_tm)
+            else:
+                cv2.imshow("camera", img)
             key = cv2.waitKey(1)
             if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -140,13 +150,18 @@ class Main:
             cnn_two = torch.load("CNN_two.pkl")
         while True:
             frame, img = self.camera.read()
-            tm_status = self.tm_main.gesture_recognition(self.tm_detector.find_hands(img), self.tm_detector)
-            if tm_status and diy:
-                is_one_hand = self.at_main.gesture_recognition(self.at_detector, img, cnn_two)
-                if is_one_hand:
-                    self.ai_main.gesture_recognition_camera(self.ai_detector, img, cnn)
+            not_match = 0
+            img_tm = copy.deepcopy(img)
+            is_one_hand = self.at_main.gesture_recognition(self.at_detector, img, cnn_two)
+            if is_one_hand:
+                not_match = self.ai_main.gesture_recognition_camera(self.ai_detector, img, cnn)
+                if not_match:
+                    self.tm_main.gesture_recognition(img_tm, self.tm_detector)
 
-            cv2.imshow("camera", img)
+            if not_match:
+                cv2.imshow("camera", img_tm)
+            else:
+                cv2.imshow("camera", img)
             key = cv2.waitKey(1)
             if cv2.getWindowProperty('camera', cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -162,4 +177,4 @@ class Main:
 
 if __name__ == '__main__':
     main = Main()
-    main.gr_img("C:/Users/leafl/Pictures/图片1.png", 0)
+    main.gr_img("", 0)

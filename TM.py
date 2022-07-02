@@ -141,11 +141,12 @@ class Main:
 
     def gesture_recognition(self, img, detector):
         self.detector = detector
-        lm_list, bbox = detector.find_position(img)
+        img = self.detector.find_hands(img)
+        lm_list, bbox = self.detector.find_position(img)
 
         if lm_list:
             x_1, y_1 = bbox["bbox"][0], bbox["bbox"][1]
-            x1, x2, x3, x4, x5 = detector.fingers_up()
+            x1, x2, x3, x4, x5 = self.detector.fingers_up()
             if (np.linalg.norm(lm_list[4]-lm_list[8]) < 50) and (np.linalg.norm(lm_list[4]-lm_list[12]) < 50):
                 cv2.putText(img, "7_SEVEN", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                             (0, 0, 255), 3)
@@ -169,6 +170,9 @@ class Main:
                             (0, 0, 255), 3)
             elif (x1 == 1 and x5 == 1) and (x3 == 0 and x4 == 0 and x2 == 0):
                 cv2.putText(img, "6_SIX", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
+                            (0, 0, 255), 3)
+            elif x1 == 0 and x5 == 0 and x3 == 0 and x4 == 0 and x2 == 0:
+                cv2.putText(img, "0_ZERO", (x_1, y_1), cv2.FONT_HERSHEY_PLAIN, 3,
                             (0, 0, 255), 3)
             else:
                 return 1
